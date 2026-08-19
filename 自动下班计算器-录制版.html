@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>自动下班计算器｜录制版</title>
+  <style>
+    *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}body{display:grid;place-items:center;background:#111;font-family:"Microsoft YaHei",sans-serif;color:#202020}
+    .stage{position:relative;width:min(100vw,56.25vh);height:min(100vh,177.78vw);overflow:hidden;background:linear-gradient(155deg,#d9dde4,#b9c1cc);isolation:isolate}
+    .wall{position:absolute;inset:0;background:radial-gradient(circle at 20% 20%,#fff9,transparent 40%),linear-gradient(120deg,transparent 49.7%,#ffffff1c 50%,transparent 50.3%)}
+    .series{position:absolute;z-index:8;left:7%;top:4%;padding:8px 14px;border-radius:7px;background:#111;color:#fff;font-size:clamp(12px,2.5vh,20px);font-weight:700;letter-spacing:1px}
+    .window{position:absolute;z-index:3;left:7%;right:7%;top:20%;background:#f4f4f4;border:1px solid #626262;box-shadow:0 22px 60px #0005;transform:perspective(900px) rotateX(1deg)}
+    .bar{height:44px;padding:10px 14px;background:#1672c7;color:#fff;display:flex;justify-content:space-between;font-size:16px}.body{padding:28px 26px 25px}h1{text-align:center;margin:0;font-size:clamp(25px,4.1vh,36px)}.sub{text-align:center;color:#777;font-size:clamp(13px,2.1vh,18px);margin:7px 0 22px}
+    .inputs{display:grid;grid-template-columns:1fr 1fr;gap:12px}.input{background:#fff;border:1px solid #aaa;padding:12px}.input small{display:block;color:#777;margin-bottom:6px}.input b{font-size:20px}.btn{margin-top:17px;width:100%;padding:14px;background:#1672c7;color:#fff;border:1px solid #075497;font-size:18px;font-weight:800}
+    .terminal{margin-top:18px;min-height:250px;padding:18px;background:#101820;border:3px inset #888;color:#b8c6ce;font-family:Consolas,"Microsoft YaHei",monospace;line-height:1.75;font-size:clamp(13px,2.2vh,18px)}.log{min-height:96px}.result{margin-top:10px;border-top:1px solid #40515a;padding-top:14px;text-align:center}.result small{color:#a8ffb2;font-size:15px}.time{display:block;margin:7px 0;color:#fff;font-family:"Microsoft YaHei",sans-serif;font-size:clamp(34px,6vh,53px);font-weight:900}.yellow{color:#ffdb4d}.caption{position:absolute;z-index:9;left:4%;right:4%;bottom:8%;text-align:center;font-size:clamp(25px,4.5vh,42px);font-weight:1000;color:#fff;text-shadow:0 3px 8px #000,2px 2px 0 #000}.caption em{font-style:normal;color:#ffe23c}
+    .cursor{position:absolute;z-index:10;width:25px;height:32px;filter:drop-shadow(1px 2px 1px #0008);transition:left .35s ease,top .35s ease}.cursor:before{content:"";display:block;width:0;height:0;border-top:25px solid #fff;border-right:16px solid transparent;transform:rotate(-15deg);filter:drop-shadow(0 0 1px #000)}
+    .flash{position:absolute;z-index:20;inset:0;display:grid;place-items:center;background:#101010;color:#fff;text-align:center;padding:8%;font-size:clamp(28px,5vh,46px);font-weight:1000;opacity:0;pointer-events:none}.flash b{color:#ffe33f}.tap{position:absolute;right:4%;bottom:2%;z-index:30;color:#ffffff88;font-size:12px}.blackout{position:absolute;z-index:100;inset:0;display:grid;place-items:center;background:#000;color:#fff;text-align:center;font-size:clamp(26px,4.8vh,44px);font-weight:1000;opacity:0;pointer-events:none}.blackout.on{animation:blackon .25s ease forwards}.blackout.dark span{display:none}
+    .pulse{animation:pulse .22s ease}.shake{animation:shake .25s ease}.fade{animation:fade .75s ease forwards}.showflash{animation:showflash 1.2s ease forwards}
+    @keyframes pulse{50%{transform:scale(.97)}}@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}@keyframes showflash{0%,100%{opacity:0}15%,80%{opacity:1}}@keyframes blackon{to{opacity:1}}
+  </style>
+</head>
+<body>
+  <main class="stage" id="stage">
+    <div class="wall"></div><div class="series">废物软件研究所 · 第2期</div>
+    <section class="window" id="window"><div class="bar"><span>下班时间计算器.exe</span><span>—　□　×</span></div><div class="body"><h1>智能下班时间计算器</h1><p class="sub">科学计算，拒绝无效加班</p><div class="inputs"><div class="input"><small>今日上班时间</small><b>09:00</b></div><div class="input"><small>每日工作时长</small><b>8小时</b></div></div><button class="btn" id="button">计算下班时间</button><div class="terminal"><div class="log" id="log"></div><div class="result"><small id="label">预计下班时间</small><span class="time" id="time"></span><small id="note"></small></div></div></div></section>
+    <div class="caption" id="caption"></div><div class="cursor" id="cursor"></div><div class="flash" id="flash"></div><div class="tap">点击画面重新播放</div><div class="blackout" id="blackout"><span>程序已下班<br>您继续工作</span></div>
+  </main>
+  <script>
+    const log=document.querySelector('#log'),time=document.querySelector('#time'),note=document.querySelector('#note'),caption=document.querySelector('#caption'),cursor=document.querySelector('#cursor'),button=document.querySelector('#button'),win=document.querySelector('#window'),flash=document.querySelector('#flash'),stage=document.querySelector('#stage'),blackout=document.querySelector('#blackout');let timers=[];
+    const later=(ms,fn)=>timers.push(setTimeout(fn,ms));
+    function setScene(lines,value,small,cap,final=false){log.innerHTML=lines;time.textContent=value;note.textContent=small;caption.innerHTML=cap;time.className='time'+(final?' yellow':'');win.classList.remove('shake');void win.offsetWidth;win.classList.add('shake')}
+    function clickButton(){const r=button.getBoundingClientRect(),s=stage.getBoundingClientRect();cursor.style.left=(r.left-s.left+r.width*.72)+'px';cursor.style.top=(r.top-s.top+r.height*.45)+'px';button.classList.remove('pulse');void button.offsetWidth;button.classList.add('pulse')}
+    function play(){timers.forEach(clearTimeout);timers=[];cursor.style.left='73%';cursor.style.top='37%';flash.className='flash';blackout.className='blackout';
+      setScene('&gt; 检测到距离明日上班不足10小时<br>&gt; 为保持考勤连续性，不建议离开公司','明天上班以后','您就可以下班了','算了半天，<em>今天还是下不了班</em>',true);
+      later(1250,()=>{flash.innerHTML='事情是这样的……';flash.className='flash showflash'});
+      later(2350,()=>{flash.className='flash';clickButton();setScene('&gt; 上班 09:00 + 工作 8小时 + 午休1小时<br>&gt; 计算完成','18:00','恭喜！您可以准时下班','本来算得<em>挺正常</em>')});
+      later(4650,()=>{clickButton();setScene('&gt; 检测到老板18:59发起临时会议<br>&gt; 会议预计持续2小时','20:00','下班时间已自动优化','直到老板发起了<em>临时会议</em>')});
+      later(7000,()=>{clickButton();setScene('&gt; 会议产生3项新任务<br>&gt; 距离明日上班不足10小时<br>&gt; 为保持考勤连续性，不建议离开公司','明天上班以后','您就可以下班了','现在好了，<em>不用纠结几点走了</em>',true)});
+      later(9800,()=>{caption.innerHTML='点击“自动下班”后，程序先走了'});
+      later(10500,()=>{blackout.className='blackout on'});
+      later(11700,()=>{blackout.className='blackout on dark'});
+      later(13200,play)
+    }
+    stage.onclick=play;play();
+  </script>
+</body></html>
